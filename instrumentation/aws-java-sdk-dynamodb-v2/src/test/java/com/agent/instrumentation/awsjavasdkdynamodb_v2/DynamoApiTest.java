@@ -18,13 +18,28 @@ import com.newrelic.api.agent.Trace;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import software.amazon.awssdk.auth.credentials.DefaultCredentialsProvider;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbAsyncClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.*;
+import software.amazon.awssdk.services.dynamodb.model.AttributeDefinition;
+import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
+import software.amazon.awssdk.services.dynamodb.model.BillingMode;
+import software.amazon.awssdk.services.dynamodb.model.CreateTableRequest;
+import software.amazon.awssdk.services.dynamodb.model.DeleteItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.DeleteTableRequest;
+import software.amazon.awssdk.services.dynamodb.model.DescribeTableRequest;
+import software.amazon.awssdk.services.dynamodb.model.GetItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.KeySchemaElement;
+import software.amazon.awssdk.services.dynamodb.model.KeyType;
+import software.amazon.awssdk.services.dynamodb.model.ListTablesRequest;
+import software.amazon.awssdk.services.dynamodb.model.ListTablesResponse;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.ScalarAttributeType;
+import software.amazon.awssdk.services.dynamodb.model.ScanRequest;
 
 import java.net.InetAddress;
 import java.net.URI;
@@ -36,10 +51,16 @@ import java.util.concurrent.ExecutionException;
 
 import static junit.framework.TestCase.assertEquals;
 
+@Ignore
 @RunWith(InstrumentationTestRunner.class)
-@InstrumentationTestConfig(includePrefixes = {"software.amazon.awssdk.services.dynamodb", "com.nr.instrumentation"})
+@InstrumentationTestConfig(includePrefixes = { "software.amazon.awssdk.services.dynamodb", "com.nr.instrumentation" })
 public class DynamoApiTest {
 
+    private static final String DYNAMODB_PRODUCT = DatastoreVendor.DynamoDB.toString();
+    private static final String TABLE_NAME = "test";
+    private static final String SECOND_TABLE_NAME = "second_table";
+    // Table used for async tests
+    private static final String ASYNC_TABLE_NAME = "test-async";
     private static String hostName;
     private static DynamoDBProxyServer server;
     private static DynamoDbClient syncDynamoDbClient;
@@ -50,7 +71,7 @@ public class DynamoApiTest {
     public static void beforeClass() throws Exception {
         port = String.valueOf(InstrumentationTestRunner.getIntrospector().getRandomPort());
         hostName = InetAddress.getLocalHost().getHostName();
-        server = ServerRunner.createServerFromCommandLineArgs(new String[]{"-inMemory", "-port", port});
+        server = ServerRunner.createServerFromCommandLineArgs(new String[] { "-inMemory", "-port", port });
         server.start();
 
         syncDynamoDbClient = DynamoDbClient.builder()
@@ -70,13 +91,6 @@ public class DynamoApiTest {
             server.stop();
         }
     }
-
-    private static final String DYNAMODB_PRODUCT = DatastoreVendor.DynamoDB.toString();
-    private static final String TABLE_NAME = "test";
-    private static final String SECOND_TABLE_NAME = "second_table";
-
-    // Table used for async tests
-    private static final String ASYNC_TABLE_NAME = "test-async";
 
     @Test
     public void testListAndCreateTable() {
